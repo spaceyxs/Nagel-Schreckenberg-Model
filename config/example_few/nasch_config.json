@@ -1,0 +1,67 @@
+{
+    "scenario": {
+    "shape": [50, 1],
+    "origin": [0, 0],
+    "wrapped": true
+  },
+  "cells": {
+    "default": {
+      "delay": "transport",
+      "model": "nasch",
+      "state": { 
+        "hasVehicle": false,
+        "roadState":{
+          "maxSpeedLimit": 3,
+          "cellInMeters": 7.5
+        } , 
+        "vehicleState":{
+          "speed": -1,
+          "vehicleType": 0
+        }
+        
+      },
+        "neighborhood": [
+        {"type": "von_neumann", "range": 5 }
+      ]
+    },
+    "vehicle_type_slow": {
+      "state": { 
+        "hasVehicle": true,
+        "roadState":{
+
+          "maxSpeedLimit": 3,
+          "cellInMeters": 7.5
+        },  
+        "vehicleState":{
+          "speed": 1,
+          "vehicleType": 0
+        }
+        
+      },
+      "cell_map": [[18, 0]]
+    },
+    "vehicle_type_fast": {
+      "state": { 
+        "hasVehicle": true, 
+        "roadState":{
+          "maxSpeedLimit": 3,
+          "cellInMeters": 7.5
+        }, 
+        "vehicleState":{
+          "speed": 3,
+          "vehicleType": 0
+        }
+        
+      },
+      "cell_map": [[4, 0]]
+    }
+  },
+    "viewer": [
+    {
+      "colors": [[40, 40, 40],[255, 0, 0]],
+      "breaks": [0, 0.5, 1],
+      "field": "hasVehicle"
+    }
+    
+  ]
+}
