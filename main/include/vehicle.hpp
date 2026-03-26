@@ -18,13 +18,13 @@ std::ostream& operator<<(std::ostream& os, const Vehicle& x) {
 	return os;
 }
 
-//! The simulator must be able to compare the equality of two state objects
+// Compare two states
 bool operator!=(const Vehicle& x, const Vehicle& y) {
 	return (x.speed != y.speed) ||
             (x.vehicleType != y.vehicleType);
 }
 
-//! It parses a JSON file and generates the corresponding Vehicle object.
+// Read state from JSON file
 void from_json(const nlohmann::json& j, Vehicle& s) {
 	j.at("speed").get_to(s.speed);
     j.at("vehicleType").get_to(s.vehicleType);

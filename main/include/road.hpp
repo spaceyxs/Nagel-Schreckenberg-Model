@@ -17,11 +17,11 @@ std::ostream& operator<<(std::ostream& os, const Road& x) {
 	return os;
 }
 
-//! The simulator must be able to compare the equality of two state objects
+// Compare two states
 bool operator!=(const Road& x, const Road& y) {
 	return (x.maxSpeedLimit != y.maxSpeedLimit) || (x.cellInMeters != y.cellInMeters);
 }
-//! It parses a JSON file and generates the corresponding Road object.
+// Read state from JSON file
 void from_json(const nlohmann::json& j, Road& s) {
 	j.at("maxSpeedLimit").get_to(s.maxSpeedLimit);
 	j.at("cellInMeters").get_to(s.cellInMeters);

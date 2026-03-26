@@ -27,31 +27,36 @@ const std::unordered_map<std::vector<int>, NeighborData<naschState, double>>& ne
         int arrivingType = 0;
         int roadEnd = 49;
 
-        // Finding my position
+         // Determine the current cell position. 
+         // !! My positions are absoulte :/
         std::vector<int> coords;
         for (const auto& [nId, nData] : neighborhood) { coords.push_back(nId[0]); }
         std::sort(coords.begin(), coords.end());
         int myPos = coords[coords.size() / 2];
 
-        // 1. PULLING LOGIC: (Check if a car from behind moves INTO this empty cell)
+        // 1. Pulling logic:
+        // If this cell is empty, check if a car comes here
         if (!state.hasVehicle) {
             int bestNeighborPos = -1; 
 
             for (const auto& [nId, nData] : neighborhood) {
                 int nPos = nId[0];
-                // Only look at neighbors behind me
+
+                // Check cars behind this cell
                 if (nData.state->hasVehicle && nPos < myPos) {
                     int nSpeed = nData.state->vehicleState.speed;
                     int maxV = nData.state->roadState.maxSpeedLimit;
 
-                    // NaSch Acceleration logic for the neighbor
+                    // // Increase speed (NaSch acceleration rule)
                     int expectedSpeed = std::min(nSpeed + 1, maxV);
                     
-                    // Gap check for the neighbor to see if they WOULD move here
+                    // Check cars in front
                     for (const auto& [checkId, checkData] : neighborhood) {
                         int checkPos = checkId[0];
                         if (checkData.state->hasVehicle && checkPos > nPos) {
-                            // Ignore the car if it is currently at the road's exit (it leaves this turn)
+                            
+                            
+                            // Ignore the car at the end of the road
                             if (checkPos < roadEnd -2) {
                                 int gap = checkPos - nPos;
                                 if (gap <= expectedSpeed) {
@@ -61,7 +66,7 @@ const std::unordered_map<std::vector<int>, NeighborData<naschState, double>>& ne
                         }
                     }
 
-                    // If the neighbor's final calculated speed lands exactly on MY position
+                    // If the car moves to this cell
                     if (nPos + expectedSpeed == myPos && expectedSpeed > 0) {
                         if (nPos > bestNeighborPos) {
                             bestNeighborPos = nPos;
@@ -74,7 +79,8 @@ const std::unordered_map<std::vector<int>, NeighborData<naschState, double>>& ne
             }
         } 
         
-        // 2. OCCUPIED LOGIC: (Check if the car CURRENTLY here moves out)
+        // 2. Occupied-cell logic:
+        // If this cell has a car, check if it leaves
         else {
             int currentV = state.vehicleState.speed;
             int maxV = state.roadState.maxSpeedLimit;
@@ -82,12 +88,12 @@ const std::unordered_map<std::vector<int>, NeighborData<naschState, double>>& ne
             int v_desired = std::min(currentV + 1, maxV);
             int finalV = v_desired;
 
-            // Braking logic based on cars ahead
+            // Braking logic based on cars in front
             for (const auto& [nId, nData] : neighborhood) {
                 int neighborPos = nId[0];
                 
                 if (nData.state->hasVehicle && neighborPos > myPos) {
-                    // Ignore the car ahead if it is currently at the road's exit
+                    // Ignore the car at the road end
                     if (neighborPos != roadEnd) {
                         int gap = neighborPos - myPos;
                         if (gap <= v_desired) {
@@ -98,25 +104,23 @@ const std::unordered_map<std::vector<int>, NeighborData<naschState, double>>& ne
                 }
             }
            
-            // MOVEMENT LOGIC
-            // If speed > 0, the car is moving out of this specific cell
+            //3. Movement Logic:
+            // Car leaves this cell
             if (finalV > 0) {
                 carLeaves = true;
             }
 
-            // Update current speed in state for the next step (if it stays)
             state.vehicleState.speed = finalV;
         }
 
-        // 3. FINAL STATE TRANSITION
-        // Priority: If a car leaves, the cell becomes empty first.
+        // Make cell empty if car leaves
         if (carLeaves) {
             state.hasVehicle = false;
             state.vehicleState.speed = -1;
             state.vehicleState.vehicleType = 0;
         }
         
-        // If a car was calculated to arrive here, it fills the (now potentially empty) cell.
+         // Put new car in cell if one arrives
         if (carArrives) {
             state.hasVehicle = true;
             state.vehicleState.speed = arrivingSpeed;

@@ -26,13 +26,13 @@ std::ostream& operator<<(std::ostream& os, const naschState& x) {
 	return os;
 }
 
-//! The simulator must be able to compare the equality of speed, hasVehicle and road since we also consider about speed difference too
+// Compare two states
 bool operator!=(const naschState& x, const naschState& y) {
 	return (x.hasVehicle != y.hasVehicle) || 
 	(x.roadState != y.roadState) || 
 	(x.vehicleState != y.vehicleState);	}
 
-//! It parses a JSON file and generates the corresponding naschState object.
+// Read state from JSON file
 void from_json(const nlohmann::json& j, naschState& s) {
 	j.at("hasVehicle").get_to(s.hasVehicle);
 	j.at("roadState").get_to(s.roadState);
