@@ -50,11 +50,11 @@ To build the project, run:
 ```bash
 source build_sim.sh
 ```
-To run example few:
+To run example many:
 ```bash
 ./bin/nasch_model config/example_many/naschVisualization_config.json
 ```
-To run example many:
+To run example few:
 ```bash
 ./bin/nasch_model config/example_few/naschVisualization_config.json
 ```
