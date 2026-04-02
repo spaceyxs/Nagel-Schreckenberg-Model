@@ -21,96 +21,137 @@ class nasch : public GridCell<naschState, double> {
 	[[nodiscard]] naschState localComputation(naschState state,
 const std::unordered_map<std::vector<int>, NeighborData<naschState, double>>& neighborhood) const override {
         
-    bool carLeaves = false;
+        bool carLeaves = false;
         bool carArrives = false;
         int arrivingSpeed = -1;
         int arrivingType = 0;
-        int roadEnd = 49;
+        double randBraking = 0.5;
 
          // Determine the current cell position. 
-         // !! My positions are absoulte :/
+         // !! My positions are absoulte
         std::vector<int> coords;
         for (const auto& [nId, nData] : neighborhood) { coords.push_back(nId[0]); }
         std::sort(coords.begin(), coords.end());
         int myPos = coords[coords.size() / 2];
 
+       
         // 1. Pulling logic:
-        // If this cell is empty, check if a car comes here
+        // If this cell is empty, check if a car comes into it (check behind )
         if (!state.hasVehicle) {
             int bestNeighborPos = -1; 
-
+            
             for (const auto& [nId, nData] : neighborhood) {
                 int nPos = nId[0];
-
-                // Check cars behind this cell
-                if (nData.state->hasVehicle && nPos < myPos) {
-                    int nSpeed = nData.state->vehicleState.speed;
-                    int maxV = nData.state->roadState.maxSpeedLimit;
-
-                    // // Increase speed (NaSch acceleration rule)
-                    int expectedSpeed = std::min(nSpeed + 1, maxV);
-                    
-                    // Check cars in front
-                    for (const auto& [checkId, checkData] : neighborhood) {
-                        int checkPos = checkId[0];
-                        if (checkData.state->hasVehicle && checkPos > nPos) {
-                            
-                            
-                            // Ignore the car at the end of the road
-                            if (checkPos < roadEnd -2) {
-                                int gap = checkPos - nPos;
-                                if (gap <= expectedSpeed) {
-                                    expectedSpeed = std::max(0, gap - 1);
-                                }
-                            }
+                if (nPos >= myPos) continue; // If neighbor in front of me ignore
+                if (!nData.state->hasVehicle) continue; // If no car in the neighbor cell ignore 
+                int nSpeed = nData.state->vehicleState.speed; 
+                
+                //Check if there is a car between of my nPos and empty cell to avoid crashing
+                int frontCarPos = -1;
+                int frontCarSpeed = 0;
+                
+                for (const auto& [checkId, checkData] : neighborhood) {
+                
+                    int checkPos = checkId[0];
+                    if (checkData.state->hasVehicle && checkPos > nPos) {
+                        
+                        if (frontCarPos ==-1 || checkPos < frontCarPos) {
+                            frontCarPos = checkPos;
+                            frontCarSpeed = checkData.state->vehicleState.speed;
                         }
                     }
+                }
+                // Check if the arriving car (nPos) needs to brake due to a car 
+                if(frontCarPos != -1){
+                    int frontCarTarget = frontCarPos + frontCarSpeed;
+                    int myTarget = nPos + nSpeed;
+                    
+                    //Don't pass that car's next position
+                    if(myTarget >= frontCarTarget ){
+                        nSpeed = frontCarSpeed;
+                    }
 
-                    // If the car moves to this cell
-                    if (nPos + expectedSpeed == myPos && expectedSpeed > 0) {
-                        if (nPos > bestNeighborPos) {
-                            bestNeighborPos = nPos;
-                            arrivingSpeed = expectedSpeed;
-                            arrivingType = nData.state->vehicleState.vehicleType;
-                            carArrives = true;
-                        }
+                    // Leave a gap while braking
+                    int gap = frontCarPos - nPos - 1;
+                    
+                    if(nSpeed > gap){
+                        nSpeed = gap;
+                    }
+                    if(nSpeed < 0){
+                        nSpeed = 0;
+                    }
+                }
+
+                // Calc distance for the incoming car
+                int distance = myPos - nPos;
+                
+                // Does the car land exactly on this cell?
+                if(nSpeed == distance && nSpeed > 0){
+                    // Look nearest car
+                    if (nPos > bestNeighborPos) {
+                        // Update arriving car data
+                        bestNeighborPos = nPos;
+                        arrivingSpeed = nSpeed;
+                        arrivingType = nData.state->vehicleState.vehicleType;
+                        carArrives = true;
                     }
                 }
             }
         } 
         
-        // 2. Occupied-cell logic:
-        // If this cell has a car, check if it leaves
+        // 2. Occupied-cell logic: If the cell has a vehicle, calculate its next move.
+        // if it has enough speed to leave the current cell, move car.
         else {
             int currentV = state.vehicleState.speed;
-            int maxV = state.roadState.maxSpeedLimit;
-
-            int v_desired = std::min(currentV + 1, maxV);
-            int finalV = v_desired;
-
-            // Braking logic based on cars in front
+            
+            //Find closest car ahead
+            int frontCarPos = -1;
+            int frontCarSpeed = 0; 
+            
+            // Finding closest car front of my car 
             for (const auto& [nId, nData] : neighborhood) {
                 int neighborPos = nId[0];
                 
                 if (nData.state->hasVehicle && neighborPos > myPos) {
-                    // Ignore the car at the road end
-                    if (neighborPos != roadEnd) {
-                        int gap = neighborPos - myPos;
-                        if (gap <= v_desired) {
-                            finalV = std::max(0, gap - 1);
-
-                        }
+                    if (frontCarPos ==-1 || neighborPos < frontCarPos) {
+                        
+                        frontCarPos = neighborPos;
+                        frontCarSpeed = nData.state->vehicleState.speed;
                     }
                 }
             }
-           
-            //3. Movement Logic:
-            // Car leaves this cell
-            if (finalV > 0) {
-                carLeaves = true;
+            // Braking logic
+            if(frontCarPos != -1){
+
+                if(myPos +currentV >= frontCarPos + frontCarSpeed){
+                    currentV = frontCarSpeed;
+                }
+
+                int gap = frontCarPos - myPos - 1;
+                
+                if(currentV > gap){
+                    currentV = gap;
+                }
+                
+                if(currentV < 0){
+                    currentV = 0;
+                }
             }
 
-            state.vehicleState.speed = finalV;
+            state.vehicleState.speed = currentV;
+           
+            
+            int myTarget = myPos + currentV;
+            for (const auto& [nId, nData] : neighborhood) {
+                 // Car leaves if it's target exist in neighborhood 
+                if (nId[0] == myTarget && currentV > 0) {
+                    carLeaves = true;
+                    break;
+                }
+               
+                carLeaves = true;  // Car leaves at the end of the road 
+             
+            }
         }
 
         // Make cell empty if car leaves
